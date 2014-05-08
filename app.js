@@ -3,7 +3,8 @@ var config = require('./config');
 var ircRouter = require('./irc-router');
 
 var client = new irc.Client(config.server, config.nick, {
-	autoConnect: false
+	autoConnect: false,
+	userName: config.username
 });
 
 client.connect(function() {
