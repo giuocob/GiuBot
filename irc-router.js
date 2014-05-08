@@ -27,13 +27,17 @@ var RouterUtils = function(taskId) {
 
 util.inherits(RouterUtils, EventEmitter);
 
-RouterUtils.prototype.subscribe = function(channel) {
-	if(!tasks[this.taskId].channels) tasks[this.taskId].channels = [];
+RouterUtils.prototype.subscribe = function(channel, cb) {
 	if(tasks[this.taskId].channels.indexOf(channel) != -1) return;
 	tasks[this.taskId].channels.push(channel);
+	if(currentChannels.indexOf(channel) == -1) {
+		join(channel,cb);
+	} else {
+		cb();
+	}
 };
 
-RouterUtils.prototype.join = function(channel, cb) {
+function join(channel, cb) {
 	if(currentChannels.indexOf(channel) != -1) cb();
 	client.join(channel, function() {
 		currentChannels.push(channel);
@@ -41,14 +45,28 @@ RouterUtils.prototype.join = function(channel, cb) {
 	});
 };
 
-RouterUtils.prototype.joinAndSubscribe = function(channel, cb) {
+//This just unsubscribes from the specified channel, and parts it if no other tasks are subscribed to it
+RouterUtils.prototype.unsubscribe = function(channel, cb) {
 	var self = this;
-	self.join(channel, function(error) {
-		if(error) return cb(error);
-		self.subscribe(channel);
-		cb();
+	if(tasks[this.taskId].channels.indexOf(channel) == -1) return;
+	tasks[this.taskId].channels.splice(tasks[this.taskId].channels.indexOf(channel), 1);
+
+	var importantChannel = false;
+	Object.keys(tasks).forEach(function(taskId) {
+		if(tasks[taskId].channels.indexOf(channel) != -1) importantChannel = true;
 	});
+	if(!importantChannel && currentChannels.indexOf(channel) != -1) {
+		client.part(channel, '', function() {
+			cb();
+		});
+	} else {
+		cb();
+	}
 };
+
+RouterUtils.prototype.say = function(channel, message) {
+	client.say(channel, message);
+}
 
 
 
