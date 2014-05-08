@@ -20,6 +20,10 @@ BingoTask.prototype.start = function(cb) {
 		}
 	});
 
+	self.router.on('kick', function(channel) {
+		if(self.raceChannels[channel]) delete self.raceChannels[channel];
+	});
+
 	self.router.subscribe(self.homeChannel, function(error) {
 		if(error) return cb(error);
 		self.router.subscribe('#giubot2', function(error) {
@@ -38,7 +42,6 @@ BingoTask.prototype.parseHomeChannelMessage = function(nick, message) {
 		normal: [
 			'goal set: the legend of zelda: ocarina of time - bingo',
 			'goal set: the legend of zelda: ocarina of time - saturday night bingo',
-			'test'
 		],
 		long: ['goal set: the legend of zelda: ocarina of time - long bingo']
 	};

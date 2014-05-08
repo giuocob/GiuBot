@@ -93,16 +93,26 @@ exports.start = function(ircClient, cb) {
 
 function routerSetup(cb) {
 	//Route messages
-	client.on('message', function(nick, to, text, message) {
+
+	function routeEvent(eventName, channel) {
+		var args = Array.prototype.slice.call(arguments);
 		//Scan all tasks to determine where this message needs to be sent
 		Object.keys(tasks).forEach(function(taskId) {
 			for(var i=0;i<tasks[taskId].channels.length;i++) {
-				if(tasks[taskId].channels[i] == to) {
-					tasks[taskId].router.emit('message', nick, to, text);
+				if(tasks[taskId].channels[i] == channel) {
+					tasks[taskId].router.emit.apply(tasks[taskId].router, [eventName].concat(args.slice(2)));
 					break;
 				}
 			}
 		});
+	}
+
+	client.on('message', function(nick, to, text, message) {
+		routeEvent('message', to, nick, to, text);
+	});
+
+	client.on('kick', function(nick, to, text, message) {
+		routeEvent('kick', to, to);
 	});
 
 	cb();
