@@ -1,1 +1,1 @@
-web: node app.js -e prod-test
+bot: node app.js -e prod-test
