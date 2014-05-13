@@ -205,7 +205,7 @@ BingoInstance.prototype.processRacebotMessage = function(message) {
 			self.setCard();
 		}
 	} else if(self.raceState == 2) {
-		if(message.indexOf('Race recorded!') != -1) {
+		if(message.indexOf('Race recorded!') != -1 || message.indexOf('Race terminated.') != -1) {
 			self.raceState = 3;
 		}
 	} else if(self.raceState == 3) {
@@ -224,7 +224,7 @@ BingoInstance.prototype.setCard = function() {
 	if(self.cardOptions.active === false) return;
 	var urlBase, params = {};
 	if(self.cardOptions.version == 'default') {
-		urlBase = 'www.speedrunslive.com/tools/oot-bingo/';
+		urlBase = 'http://www.speedrunslive.com/tools/oot-bingo/';
 	} else {
 		urlBase = 'http://giuocob.herokuapp.com/bingo/all-version-bingo.html';
 		params['version'] = self.cardOptions.version;
