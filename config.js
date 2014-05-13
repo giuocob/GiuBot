@@ -6,16 +6,18 @@ var config = {
 	//Each key is an environment
 	'test': {
 		server: 'irc2.speedrunslive.com',
-		nick: 'Giubot-test',
-		username: 'Giubot-test',
+		nick: 'TestBot',
+		username: 'TestBot',
+		password: 'test1234',
 		owner: 'giuocob',
 		racebot: 'giuocob',
 		homeChannel: '#giubot'
 	},
 	'prod-test': {
 		server: 'irc2.speedrunslive.com',
-		nick: 'Giubot-test',
-		username: 'Giubot-test',
+		nick: 'TestBot',
+		username: 'TestBot',
+		password: 'test1234',
 		owner: 'giuocob',
 		racebot: 'RaceBot',
 		homeChannel: '#speedrunslive'

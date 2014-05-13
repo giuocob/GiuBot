@@ -9,16 +9,19 @@ var client = new irc.Client(config.server, config.nick, {
 
 client.connect(function() {
 	console.log('Connected!')
-	client.join(config.homeChannel, function() {
-		console.log('Joined main channel!');
-		ircRouter.start(client, function(error) {
-			if(error) {
-				console.log(error);
-				process.exit();
-			}
-			console.log('All tasks initialized.')
+	setTimeout(function() {
+		client.say('NickServ', 'IDENTIFY ' + config.password);
+		client.join(config.homeChannel, function() {
+			console.log('Joined main channel!');
+			ircRouter.start(client, function(error) {
+				if(error) {
+					console.log(error);
+					process.exit();
+				}
+				console.log('All tasks initialized.')
+			});
 		});
-	});
+	}, 2000);
 });
 
 
