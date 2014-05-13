@@ -205,7 +205,7 @@ BingoInstance.prototype.processRacebotMessage = function(message) {
 			self.setCard();
 		}
 	} else if(self.raceState == 2) {
-		if(message.indexOf('Race recorded!') != -1) {
+		if(message.indexOf('Race recorded!') != -1 || message.indexOf('Race terminated.') != -1) {
 			self.raceState = 3;
 		}
 	} else if(self.raceState == 3) {
