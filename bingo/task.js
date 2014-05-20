@@ -1,6 +1,9 @@
 var config = require('../config');
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
+var request = require('request');
+
+var SRL_VERSION = 'v8.1';
 
 var BingoTask = function(router) {
 	this.router = router;
@@ -43,7 +46,11 @@ BingoTask.prototype.parseHomeChannelMessage = function(nick, message) {
 			'goal set: the legend of zelda: ocarina of time - bingo',
 			'goal set: the legend of zelda: ocarina of time - saturday night bingo',
 		],
-		long: ['goal set: the legend of zelda: ocarina of time - long bingo']
+		long: ['goal set: the legend of zelda: ocarina of time - long bingo'],
+		blackout: [
+			'goal set: the legend of zelda: ocarina of time - blackout',
+			'goal set: the legend of zelda: ocarina of time - team blackout'
+		]
 	};
 
 	function fetchChannel(message) {
@@ -62,7 +69,11 @@ BingoTask.prototype.parseHomeChannelMessage = function(nick, message) {
 			if(message.indexOf(snippets[k]) != -1) {
 				raceChannel = fetchChannel(message);
 				if(!raceChannel) continue;
-				raceOpts = {mode: mode};
+				if(mode == 'blackout') {
+					raceOpts = {blackout: true, teamSize: 1}
+				} else {
+					raceOpts = {mode: mode};
+				}
 				break;
 			}
 		}
@@ -83,15 +94,19 @@ BingoTask.prototype.parseHomeChannelMessage = function(nick, message) {
 };
 
 //Message template functions
-function welcomeMessage(mode) {
-	if(mode == 'short' || mode == 'long') {
+function welcomeMessage(opts) {
+	var mode = opts.mode;
+	if(opts.blackout) {
+		return 'Hello I\'ll automatically generate a blackout-friendly bingo card when the race starts. ' + 
+			'If this is a team blackout, type !teamsize <team_size> to specify how large the teams are. To get a regular card instead, type !noblackout';
+	} else if(mode == 'short' || mode == 'long') {
 		return 'Hello! I\'ll automatically generate a ' + mode + ' bingo card when the race starts.';
 	} else {
 		return 'Hello! I\'ll automatically generate a bingo card when the race starts.';
 	}
 }
 
-var welcomeOptOut = 'If you don\'t want me to, type !nobingo.';
+var welcomeOptOut = 'If you don\'t want a card, type !nobingo.';
 var welcomeOptions = 'For more options, type !bingohelp.';
 var helpMessages = [
 	'Here are the options understood by the GiuBot card setter:',
@@ -99,6 +114,7 @@ var helpMessages = [
 	'!nobingo: Do not set a bingo card for this race.',
 	'!yesbingo: Undo an application of !nobingo.',
 	'!status: Display information about the card GiuBot will set upon race start.',
+	'!blackout: Switch the bot into blackout mode.',
 	'!mode *card_mode*: Set the card length. Options are short, normal, and long.',
 	'!version *card_version*: Set the bingo version to use. Defaults to the current version hosted on SpeedRunsLive.'
 ];
@@ -109,12 +125,28 @@ var commandNotUnderstood = 'Sorry, I didn\'t understand your request.';
 
 var statusMessage = function(cardStatus) {
 	if(cardStatus.active === false) return 'GiuBot will not set a card.';
-	return 'Mode: ' + cardStatus.mode + ', Version: ' + (cardStatus.version || 'default');
+	var base = 'Mode: ' + cardStatus.mode + ', Version: ' + (cardStatus.version || 'default');
+	if(cardStatus.blackout) {
+		if(cardStatus.teamSize == 1) {
+			base = 'BLACKOUT   ' + base;
+		} else {
+			base = 'TEAM BLACKOUT (' + cardStatus.teamSize + ' players per team)   ' + base;
+		}
+	}
+	return base;
 }
 var invalidMode = 'Invalid mode specified. Must be one of (short, normal, long).';
 var modeUpdated = 'Mode updated.';
 var invalidVersion = 'Invalid version specified.';
 var versionUpdated = 'Version updated.';
+
+var blackoutMessage = 'Blackout mode initiated! I will find a blackout-friendly card for the race. If this is a team blackout, ' +
+	'type !teamsize <team_size> to specify how large the teams are. To revert, type !noblackout.'
+var noBlackoutMessage = 'Blackout mode disabled.';
+var teamSizeUpdated = 'Team size updated.';
+var invalidTeamSize = 'Invalid argument given for team size.';
+
+var cardSetError = 'Sorry, there was an error while setting the card.';
 
 var rematchMessage = 'Ready to go again! Card status: '
 
@@ -123,7 +155,7 @@ util.inherits(BingoInstance, EventEmitter);
 function BingoInstance(router, bingoChannel, opts) {
 	this.router = router;
 	this.channel = bingoChannel;
-	this.cardOptions = { mode: opts.mode, active: true, version: 'default' };
+	this.cardOptions = { mode: opts.mode || 'normal', active: true, version: 'default', blackout: opts.blackout || false, teamSize: opts.teamSize || 1 };
 	this.raceState = 0;
 	/*
 	 * State reference:
@@ -133,7 +165,7 @@ function BingoInstance(router, bingoChannel, opts) {
 	 * 3: Race is over. Bot will idle until kicked by racebot; a rematch command will return to state 0.
 	 */
 
-	 this.router.say(this.channel, welcomeMessage(this.cardOptions.mode));
+	 this.router.say(this.channel, welcomeMessage(this.cardOptions));
 	 this.router.say(this.channel, welcomeOptOut);
 	 this.router.say(this.channel, welcomeOptions);
 
@@ -190,6 +222,26 @@ BingoInstance.prototype.processUserMessage = function(nick, message) {
 			self.cardOptions.version = newVersion;
 			self.router.say(self.channel, versionUpdated);
 		}
+	} else if(message == '!blackout') {
+		if(self.raceState == 0 && self.cardOptions.active === true) {
+			self.cardOptions.blackout = true;
+			self.cardOptions.teamSize = 1;
+			self.router.say(self.channel, blackoutMessage);
+		}
+	} else if(message == '!noblackout') {
+		if(self.raceState == 0 && self.cardOptions.active === true && self.cardOptions.blackout === true) {
+			self.cardOptions.blackout = false;
+			self.router.say(self.channel, noBlackoutMessage);
+		}
+	} else if(message.indexOf('!teamsize') == 0) {
+		if(self.raceState == 0 && self.cardOptions.active === true && self.cardOptions.blackout === true) {
+			var messageSplit = message.split(' ');
+			if(messageSplit.length != 2) return self.router.say(self.channel, commandNotUnderstood);
+			var size = parseInt(messageSplit[1]);
+			if(isNaN(size) || size < 1 || size > 100) return self.router.say(self.channel, invalidTeamSize);
+			self.cardOptions.teamSize = size;
+			self.router.say(self.channel, teamSizeUpdated);
+		}
 	}
 };
 
@@ -224,27 +276,47 @@ BingoInstance.prototype.setCard = function() {
 	if(self.cardOptions.active === false) return;
 	var urlBase, params = {};
 	if(self.cardOptions.version == 'default') {
-		urlBase = 'http://www.speedrunslive.com/tools/oot-bingo/';
+		params['version'] = SRL_VERSION;
 	} else {
-		urlBase = 'http://giuocob.herokuapp.com/bingo/all-version-bingo.html';
 		params['version'] = self.cardOptions.version;
 	}
-	params['mode'] = self.cardOptions.mode;
-	params['seed'] = 100000 + Math.floor(Math.random() * 900000);
+	params['mode'] = self.cardOptions.mode || 'normal';
 
-	var url = urlBase;
-	var queryKeys = Object.keys(params);
-	for(var i=0;i<queryKeys.length;i++) {
-		var key = queryKeys[i];
-		var value = params[key];
-		if(i == 0) {
-			url += '?';
-		} else {
-			url += '&';
-		}
-		url += key + '=' + value;
+	if(!self.cardOptions.blackout) {
+		params['seed'] = Math.floor(Math.random() * 1000000);
+		finalSet();
+	} else {
+		params.teamSize = self.cardOptions.teamSize;
+		request({
+			uri: 'http://giuocob.herokuapp.com/api/bingo/card/blackout',
+			method: 'GET',
+			qs: params
+		}, function(error, response, body) {
+			if(error) return self.router.say(self.channel, cardSetError);
+			try {
+				body = JSON.parse(body);
+			} catch(e) {
+				return self.router.say(self.channel, cardSetError);
+			}
+			params.seed = body.seed;
+			finalSet();
+		});
 	}
-	self.router.say(self.channel, '.setgoal ' + url);
+
+
+
+	function finalSet() {
+		var cardUrl = getCardUrl(params);
+		self.router.say(self.channel, '.setgoal ' + cardUrl);
+	}
+
+	function getCardUrl(opts) {
+		var url;
+		if(opts.version == SRL_VERSION) url = 'http://www.speedrunslive.com/tools/oot-bingo/?';
+		else url = 'http://giuocob.herokuapp.com/bingo/all-version-bingo.html?version=' + opts.version + '&';
+		url += 'mode=' + opts.mode + '&seed=' + opts.seed;
+		return url;
+	}
 };
 
 exports.Task = BingoTask;
