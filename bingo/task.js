@@ -214,7 +214,7 @@ BingoInstance.prototype.processUserMessage = function(nick, message) {
 		}
 	} else if(message.indexOf('!version') == 0) {
 		if(self.raceState == 0 && self.cardOptions.active === true) {
-			var validVersions = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v7.1', 'v8', 'v8.1', 'default'];
+			var validVersions = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v7.1', 'v8', 'v8.1', 'v8.2', 'default'];
 			var messageSplit = message.toLowerCase().split(' ');
 			if(messageSplit.length != 2) return self.router.say(self.channel, commandNotUnderstood);
 			var newVersion = messageSplit[1];
