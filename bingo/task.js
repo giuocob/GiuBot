@@ -3,7 +3,7 @@ var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var request = require('request');
 
-var SRL_VERSION = 'v8.1';
+var SRL_VERSION = 'v8.2';
 
 var BingoTask = function(router) {
 	this.router = router;
