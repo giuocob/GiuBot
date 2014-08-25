@@ -3,7 +3,7 @@ var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var request = require('request');
 
-var SRL_VERSION = 'v8.2';
+var SRL_VERSION = 'v8.3';
 
 var BingoTask = function(router) {
 	this.router = router;
@@ -307,7 +307,13 @@ BingoInstance.prototype.setCard = function() {
 
 	function finalSet() {
 		var cardUrl = getCardUrl(params);
-		self.router.say(self.channel, '.setgoal ' + cardUrl);
+		var goalString = '';
+		if (self.cardOptions.blackout) {
+			if(self.cardOptions.teamSize != 1) goalString += 'Team Blackout ';
+			else goalString += 'Blackout ';
+		}
+		goalString += cardUrl;
+		self.router.say(self.channel, '.setgoal ' + goalString);
 	}
 
 	function getCardUrl(opts) {
